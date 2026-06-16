@@ -2,6 +2,7 @@ import uuid
 from app.services.scanner import scan_aws_account
 from app.services.security_group_scanner import scan_security_groups
 from app.services.iam_scanner import scan_iam
+from app.services.scoring import compute_scan_results
 
 
 def run_full_scan(request):
@@ -126,10 +127,16 @@ def run_full_scan(request):
         # At least one scanner has a different status (mixed success/failure)
         overall_status = 'partial_failure'
 
+    # Compute compliance scoring results
+    scoring_results = compute_scan_results(all_findings)
+
     # Return unified response matching ScanResponse schema
     return {
         "scan_id": master_scan_id,
         "status": overall_status,
         "findings_count": total_findings_count,
-        "findings": all_findings
+        "findings": all_findings,
+        "security_score": scoring_results["security_score"],
+        "risk_level": scoring_results["risk_level"],
+        "severity_breakdown": scoring_results["severity_breakdown"]
     }
