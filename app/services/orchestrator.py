@@ -1,17 +1,23 @@
 import uuid
+import logging
+from datetime import datetime
 from app.services.scanner import scan_aws_account
 from app.services.security_group_scanner import scan_security_groups
 from app.services.iam_scanner import scan_iam
 from app.services.scoring import compute_scan_results
+from app.crud.scan import create_scan
+
+logger = logging.getLogger(__name__)
 
 
-def run_full_scan(request):
+def run_full_scan(request, db=None):
     """
     Orchestrator function that runs S3, Security Group, and IAM scanners
     and combines their results into a unified response.
 
     Args:
         request: The incoming request object (ScanRequest)
+        db: Database session (optional, for persistence)
 
     Returns:
         A dictionary containing:
@@ -20,9 +26,14 @@ def run_full_scan(request):
             - findings_count: The total number of findings from all scanners.
             - findings: A list of finding dictionaries from all scanners,
                        with error findings enhanced to include scanner identification.
+            - security_score: Calculated compliance score (0-100)
+            - risk_level: Risk level derived from score
+            - severity_breakdown: Count of findings by severity level
     """
     # Generate a single master scan ID for the entire combined operation
     master_scan_id = str(uuid.uuid4())
+    # Get current timestamp for the scan
+    scan_timestamp = datetime.utcnow()
 
     # Initialize result tracking for each scanner
     s3_result = None
@@ -129,6 +140,29 @@ def run_full_scan(request):
 
     # Compute compliance scoring results
     scoring_results = compute_scan_results(all_findings)
+
+    # Persist to database if session is provided
+    if db is not None:
+        try:
+            # Extract AWS account ID from request if available
+            aws_account_id = getattr(request, 'aws_account_id', None)
+
+            # Create scan record with findings
+            create_scan(
+                db=db,
+                scan_id=master_scan_id,
+                status=overall_status,
+                scan_timestamp=scan_timestamp,
+                aws_account_id=aws_account_id,
+                findings_count=total_findings_count,
+                security_score=scoring_results["security_score"],
+                risk_level=scoring_results["risk_level"],
+                findings=all_findings
+            )
+        except Exception as e:
+            # Log the error but don't break the scan execution
+            logger.error(f"Failed to persist scan results to database: {e}")
+            # Continue to return the scan results to the user
 
     # Return unified response matching ScanResponse schema
     return {
