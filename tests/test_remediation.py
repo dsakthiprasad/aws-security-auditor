@@ -52,8 +52,8 @@ MOCK_IAM_OLD_KEY_FINDING = {
     "issue_type": constants.IAM_OLD_KEY,
     "finding_data": {
         "user_name": "test-user",
-        "access_key_id": "AKIAIOSFODNN7EXAMPLE",  # AKIA + 16 uppercase alphanumeric
-        "details": "Access key 'AKIAIOSFODNN7EXAMPLE' created 95 days ago (created: 2023-01-01)"
+        "access_key_id": "AKIATEST1234567890AB",  # AKIA + 16 uppercase alphanumeric
+        "details": "Access key 'AKIATEST1234567890AB' created 95 days ago (created: 2023-01-01)"
     }
 }
 
@@ -122,7 +122,7 @@ MOCK_IAM_FINDING_FALLBACK_USER = {
     "issue_type": constants.IAM_OLD_KEY,
     "finding_data": {
         "user": "fallback-user",
-        "access_key_id": "AKIAIOSFODNN7EXAMPLE"
+        "access_key_id": "AKIATEST1234567890AB"
     }
 }
 
@@ -131,7 +131,7 @@ MOCK_IAM_FINDING_FALLBACK_USERNAME = {
     "issue_type": constants.IAM_OLD_KEY,
     "finding_data": {
         "username": "username-fallback",
-        "access_key_id": "AKIAIOSFODNN7EXAMPLE"
+        "access_key_id": "AKIATEST1234567890AB"
     }
 }
 
@@ -143,9 +143,9 @@ INVALID_SG_IDS = ["sg-", "sg-0a1b2c3", "sg-xyz", ""]
 # Valid SG IDs: 8 or 17 hex chars after sg-
 VALID_SG_IDS = ["sg-0a1b2c3d", "sg-0a1b2c3d4e5f6a7b8"]  # 8 and 17 hex chars (fixed: removed invalid g,h)
 
-INVALID_ACCESS_KEYS = ["AKIA", "AKIAIOSFODNN7EXAM", "AKIAIOSFODNN7EXAMPLE1", ""]
+INVALID_ACCESS_KEYS = ["AKIA", "AKIAIOSFODNN7EXAM", "AKIATEST1234567890", ""]
 # Valid: AKIA or ASIA followed by 16 uppercase alphanumeric
-VALID_ACCESS_KEYS = ["AKIAIOSFODNN7EXAMPLE", "ASIAIOSFODNN7EXAMPLE"]
+VALID_ACCESS_KEYS = ["AKIATEST1234567890AB", "ASIATEST1234567890AB"]
 
 
 def test_is_valid_s3_bucket_name():
@@ -286,19 +286,19 @@ def test_extract_and_validate_vars_iam_old_key():
     result = _extract_and_validate_vars(MOCK_IAM_OLD_KEY_FINDING, constants.IAM_OLD_KEY)
     assert result is not None
     assert result["user_name"] == "test-user"
-    assert result["access_key_id"] == "AKIAIOSFODNN7EXAMPLE"
+    assert result["access_key_id"] == "AKIATEST1234567890AB"
 
     # Fallback user
     result = _extract_and_validate_vars(MOCK_IAM_FINDING_FALLBACK_USER, constants.IAM_OLD_KEY)
     assert result is not None
     assert result["user_name"] == "fallback-user"
-    assert result["access_key_id"] == "AKIAIOSFODNN7EXAMPLE"
+    assert result["access_key_id"] == "AKIATEST1234567890AB"
 
     # Fallback username
     result = _extract_and_validate_vars(MOCK_IAM_FINDING_FALLBACK_USERNAME, constants.IAM_OLD_KEY)
     assert result is not None
     assert result["user_name"] == "username-fallback"
-    assert result["access_key_id"] == "AKIAIOSFODNN7EXAMPLE"
+    assert result["access_key_id"] == "AKIATEST1234567890AB"
 
     # Missing user keys (clear both outer and nested, preserving other fields)
     missing_user = {
@@ -420,6 +420,8 @@ def test_generate_remediation_mixed_findings():
 
             # Check manual guidance
             assert len(result["remediation"]["manual_guidance"]) == 2
+            guidance_issue_types = {g["issue_type"] for g in result["remediation"]["manual_guidance"]}
+            assert guidance_issue_types == {constants.IAM_NO_MFA, constants.SG_ALL_TRAFFIC_OPEN}
             for guidance in result["remediation"]["manual_guidance"]:
                 assert "finding_id" in guidance
                 assert "issue_type" in guidance
@@ -615,6 +617,7 @@ def test_generate_remediation_response_structure():
             assert set(metadata.keys()) == expected_meta_keys
             assert isinstance(metadata["warnings"], list)
             assert len(metadata["warnings"]) > 0
+
 
 
 if __name__ == "__main__":

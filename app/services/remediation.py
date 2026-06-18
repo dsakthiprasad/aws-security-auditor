@@ -249,6 +249,7 @@ def _extract_and_validate_vars(finding: Dict[str, Any], issue_type: str) -> Opti
                 "access_key_id": access_key_id
             }
 
+
         else:
             # This should not happen because we only call this for issue types in TEMPLATE_MAP
             logger.warning(f"_extract_and_validate_vars called for unmapped issue type: {issue_type}")
