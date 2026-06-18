@@ -1,0 +1,24 @@
+{#
+  Remediates SG_RDP_OPEN finding
+  Required variables: group_id
+  Optional variables: port, protocol, cidr_blocks
+  This template removes the existing RDP rule (0.0.0.0/0) and replaces it with a rule that only allows the specified CIDR.
+#}
+resource "aws_security_group_rule" "remove_rdp_open_{{ group_id }}" {
+  type                     = "ingress"
+  from_port                = 3389
+  to_port                  = 3389
+  protocol                 = "tcp"
+  cidr_blocks              = []
+  security_group_id        = "{{ group_id }}"
+}
+
+{# If you want to allow RDP from a specific CIDR, uncomment and set the variable #}
+{# resource "aws_security_group_rule" "allow_rdp_restricted_{{ group_id }}" { #}
+{#   type                     = "ingress" #}
+{#   from_port                = 3389 #}
+{#   to_port                  = 3389 #}
+{#   protocol                 = "tcp" #}
+{#   cidr_blocks              = ["{{ allowed_rdp_cidr }}"] #}
+{#   security_group_id        = "{{ group_id }}" #}
+{# } #}

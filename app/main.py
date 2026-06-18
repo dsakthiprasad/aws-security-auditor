@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.api.v1.endpoints import health, scan, history
+from app.api.v1.endpoints import health, scan, history, remediation
 from app.db.session import engine
 from app.models.db import Base
 
@@ -21,4 +21,9 @@ app.include_router(
     history.router,
     prefix="/history",
     tags=["history"]
+)
+app.include_router(
+    remediation.router,
+    prefix="/remediate",
+    tags=["remediation"]
 )

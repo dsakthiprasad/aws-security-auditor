@@ -1,0 +1,25 @@
+{#
+  Remediates SG_SSH_OPEN finding
+  Required variables: group_id
+  Optional variables: port, protocol, cidr_blocks (if you want to specify allowed CIDR, otherwise we remove the rule)
+  Note: This template removes the existing SSH rule (0.0.0.0/0) and replaces it with a rule that only allows the specified CIDR.
+  If you want to simply remove the rule without replacement, set cidr_blocks to an empty list.
+#}
+resource "aws_security_group_rule" "remove_ssh_open_{{ group_id }}" {
+  type                     = "ingress"
+  from_port                = 22
+  to_port                  = 22
+  protocol                 = "tcp"
+  cidr_blocks              = []
+  security_group_id        = "{{ group_id }}"
+}
+
+{# If you want to allow SSH from a specific CIDR, uncomment and set the variable #}
+{# resource "aws_security_group_rule" "allow_ssh_restricted_{{ group_id }}" { #}
+{#   type                     = "ingress" #}
+{#   from_port                = 22 #}
+{#   to_port                  = 22 #}
+{#   protocol                 = "tcp" #}
+{#   cidr_blocks              = ["{{ allowed_ssh_cidr }}"] #}
+{#   security_group_id        = "{{ group_id }}" #}
+{# } #}

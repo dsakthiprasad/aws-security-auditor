@@ -1,0 +1,18 @@
+{#
+  Remediates IAM_OLD_KEY finding
+  Required variables: user_name, access_key_id
+  This template does two things:
+  1. Deactivates the old access key (specified by access_key_id) for the user (user_name)
+  2. Creates a new active access key for the user to replace it.
+  Note: After applying, you must update any applications using the old key to use the new key.
+#}
+resource "aws_iam_access_key" "deactivate_old_key_{{ user_name }}_{{ access_key_id }}" {
+  user       = "{{ user_name }}"
+  access_key = "{{ access_key_id }}"
+  status     = "Inactive"
+}
+
+resource "aws_iam_access_key" "new_key_{{ user_name }}" {
+  user = "{{ user_name }}"
+  # Status defaults to Active
+}
