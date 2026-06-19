@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.crud.scan import get_scan_by_scan_id
 from app.models.db import Scan, Finding
 from app import constants
+from app.services.explanation import get_security_explanation
 
 logger = logging.getLogger(__name__)
 
@@ -62,11 +63,14 @@ def generate_remediation(db: Session, scan_id: str) -> Dict[str, Any]:
     processed_findings = 0
     remediated_count = 0
     manual_count = 0
+    issue_type_to_first_finding = {}
 
     # Process each finding
     for finding in findings:
         processed_findings += 1
         issue_type = finding.get("issue_type")
+        if issue_type not in issue_type_to_first_finding:
+            issue_type_to_first_finding[issue_type] = finding
 
         # Check if we have a template for this issue type
         template_path = TEMPLATE_MAP.get(issue_type)
@@ -117,6 +121,27 @@ def generate_remediation(db: Session, scan_id: str) -> Dict[str, Any]:
             manual_guidance_list.append(guidance)
             manual_count += 1
 
+    # Build AI explanations for unique issue types
+    ai_explanations = []
+    for issue_type, finding in issue_type_to_first_finding.items():
+        # Extract details string from the finding
+        details_str = ""
+        # Try to get details from the finding dictionary
+        if "details" in finding and finding["details"]:
+            details_str = str(finding["details"])
+        else:
+            # Try to get from finding_data
+            finding_data = finding.get("finding_data", {})
+            if "details" in finding_data and finding_data["details"]:
+                details_str = str(finding_data["details"])
+            # If still empty, we leave it as empty string
+
+        explanation = get_security_explanation(issue_type, details_str)
+        ai_explanations.append({
+            "issue_type": issue_type,
+            "explanation": explanation
+        })
+
     # Prepare the response
     return {
         "scan_id": scan_id,
@@ -126,7 +151,8 @@ def generate_remediation(db: Session, scan_id: str) -> Dict[str, Any]:
         "findings_manual_guidance": manual_count,
         "remediation": {
             "terraform": terraform_blocks,
-            "manual_guidance": manual_guidance_list
+            "manual_guidance": manual_guidance_list,
+            "ai_explanations": ai_explanations
         },
         "metadata": {
             "review_required": True,

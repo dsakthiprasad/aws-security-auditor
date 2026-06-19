@@ -362,7 +362,8 @@ def test_generate_remediation_scan_not_found():
             generate_remediation(Mock(spec=Session), MOCK_SCAN_ID)
 
 
-def test_generate_remediation_empty_findings():
+@patch('app.services.remediation.get_security_explanation')
+def test_generate_remediation_empty_findings(mock_get_explanation):
     """Test generate_remediation with scan that has no findings."""
     # Mock scan with no findings
     mock_scan = Mock()
@@ -370,6 +371,9 @@ def test_generate_remediation_empty_findings():
 
     with patch('app.services.remediation.get_scan_by_scan_id') as mock_get_scan:
         mock_get_scan.return_value = mock_scan
+
+        # Configure the mock explanation service to return a fixed string
+        mock_get_explanation.return_value = "Mock AI security explanation."
 
         result = generate_remediation(Mock(spec=Session), MOCK_SCAN_ID)
 
@@ -379,9 +383,15 @@ def test_generate_remediation_empty_findings():
         assert result["findings_manual_guidance"] == 0
         assert len(result["remediation"]["terraform"]) == 0
         assert len(result["remediation"]["manual_guidance"]) == 0
+        # Check that the explanation service was not called (since there are no findings)
+        mock_get_explanation.assert_not_called()
+        # Check the ai_explanations field
+        assert "ai_explanations" in result["remediation"]
+        assert result["remediation"]["ai_explanations"] == []
 
 
-def test_generate_remediation_mixed_findings():
+@patch('app.services.remediation.get_security_explanation')
+def test_generate_remediation_mixed_findings(mock_get_explanation):
     """Test generate_remediation with mixed remediable and non-remediable findings."""
     # Create mock findings
     mock_findings = [
@@ -396,6 +406,9 @@ def test_generate_remediation_mixed_findings():
 
     with patch('app.services.remediation.get_scan_by_scan_id') as mock_get_scan:
         mock_get_scan.return_value = mock_scan
+
+        # Configure the mock explanation service to return a fixed string
+        mock_get_explanation.return_value = "Mock AI security explanation."
 
         # Mock Jinja2 template rendering
         with patch('app.services.remediation.template_env.get_template') as mock_get_template:
@@ -433,8 +446,20 @@ def test_generate_remediation_mixed_findings():
             assert result["metadata"]["terraform_version_required"] == ">=1.0.0"
             assert "Always review generated Terraform before applying." in result["metadata"]["warnings"]
 
+            # Check AI explanations
+            assert "ai_explanations" in result["remediation"]
+            # We expect one explanation per unique issue type (4 unique issue types in the mock findings)
+            assert len(result["remediation"]["ai_explanations"]) == 4
+            for explanation in result["remediation"]["ai_explanations"]:
+                assert "issue_type" in explanation
+                assert "explanation" in explanation
+                assert explanation["explanation"] == "Mock AI security explanation."
+            # Verify the mock was called once per unique issue type
+            assert mock_get_explanation.call_count == 4
 
-def test_generate_remediation_missing_variables():
+
+@patch('app.services.remediation.get_security_explanation')
+def test_generate_remediation_missing_variables(mock_get_explanation):
     """Test generate_remediation when variables cannot be extracted."""
     # Finding with missing bucket name (using the database structure)
     mock_finding = Mock()
@@ -454,6 +479,9 @@ def test_generate_remediation_missing_variables():
     with patch('app.services.remediation.get_scan_by_scan_id') as mock_get_scan:
         mock_get_scan.return_value = mock_scan
 
+        # Configure the mock explanation service to return a fixed string
+        mock_get_explanation.return_value = "Mock AI security explanation."
+
         result = generate_remediation(Mock(spec=Session), MOCK_SCAN_ID)
 
         # Should have 0 remediated, 1 manual guidance
@@ -465,8 +493,19 @@ def test_generate_remediation_missing_variables():
         guidance = result["remediation"]["manual_guidance"][0]
         assert "Required variables could not be extracted" in guidance["guidance"]
 
+        # Check AI explanations
+        assert "ai_explanations" in result["remediation"]
+        # We expect one explanation for the unique issue type (S3_PUBLIC_BUCKET)
+        assert len(result["remediation"]["ai_explanations"]) == 1
+        explanation = result["remediation"]["ai_explanations"][0]
+        assert explanation["issue_type"] == constants.S3_PUBLIC_BUCKET
+        assert explanation["explanation"] == "Mock AI security explanation."
+        # Verify the mock was called once
+        assert mock_get_explanation.call_count == 1
 
-def test_generate_remediation_template_not_found():
+
+@patch('app.services.remediation.get_security_explanation')
+def test_generate_remediation_template_not_found(mock_get_explanation):
     """Test generate_remediation when template is not found."""
     # This simulates an issue type that's in TEMPLATE_MAP but template file is missing
     # We'll test by temporarily removing a template from TEMPLATE_MAP in the test
@@ -482,6 +521,9 @@ def test_generate_remediation_template_not_found():
         with patch('app.services.remediation.get_scan_by_scan_id') as mock_get_scan:
             mock_get_scan.return_value = mock_scan
 
+            # Configure the mock explanation service to return a fixed string
+            mock_get_explanation.return_value = "Mock AI security explanation."
+
             result = generate_remediation(Mock(spec=Session), MOCK_SCAN_ID)
 
             # Should fall back to manual guidance
@@ -492,8 +534,19 @@ def test_generate_remediation_template_not_found():
             guidance = result["remediation"]["manual_guidance"][0]
             assert "No automated remediation available" in guidance["guidance"]
 
+            # Check AI explanations
+            assert "ai_explanations" in result["remediation"]
+            # We expect one explanation for the unique issue type (S3_PUBLIC_BUCKET)
+            assert len(result["remediation"]["ai_explanations"]) == 1
+            explanation = result["remediation"]["ai_explanations"][0]
+            assert explanation["issue_type"] == constants.S3_PUBLIC_BUCKET
+            assert explanation["explanation"] == "Mock AI security explanation."
+            # Verify the mock was called once
+            assert mock_get_explanation.call_count == 1
 
-def test_generate_remediation_rendering_error():
+
+@patch('app.services.remediation.get_security_explanation')
+def test_generate_remediation_rendering_error(mock_get_explanation):
     """Test generate_remediation when template rendering fails."""
     mock_finding = Mock()
     mock_finding.to_dict.return_value = MOCK_S3_FINDING
@@ -503,6 +556,9 @@ def test_generate_remediation_rendering_error():
 
     with patch('app.services.remediation.get_scan_by_scan_id') as mock_get_scan:
         mock_get_scan.return_value = mock_scan
+
+        # Configure the mock explanation service to return a fixed string
+        mock_get_explanation.return_value = "Mock AI security explanation."
 
         # Mock template that raises an exception during render
         with patch('app.services.remediation.template_env.get_template') as mock_get_template:
@@ -519,6 +575,16 @@ def test_generate_remediation_rendering_error():
 
             guidance = result["remediation"]["manual_guidance"][0]
             assert "Error during Terraform generation" in guidance["guidance"]
+
+            # Check AI explanations
+            assert "ai_explanations" in result["remediation"]
+            # We expect one explanation for the unique issue type (S3_PUBLIC_BUCKET)
+            assert len(result["remediation"]["ai_explanations"]) == 1
+            explanation = result["remediation"]["ai_explanations"][0]
+            assert explanation["issue_type"] == constants.S3_PUBLIC_BUCKET
+            assert explanation["explanation"] == "Mock AI security explanation."
+            # Verify the mock was called once
+            assert mock_get_explanation.call_count == 1
 
 
 def test_get_service_from_issue_type():
@@ -571,7 +637,8 @@ def test_generate_filename():
             assert "my-test-bucket" in filename or "my_test_bucket" in filename
 
 
-def test_generate_remediation_response_structure():
+@patch('app.services.remediation.get_security_explanation')
+def test_generate_remediation_response_structure(mock_get_explanation):
     """Test that the response structure matches the expected format."""
     mock_finding = Mock()
     mock_finding.to_dict.return_value = MOCK_S3_FINDING
@@ -581,6 +648,9 @@ def test_generate_remediation_response_structure():
 
     with patch('app.services.remediation.get_scan_by_scan_id') as mock_get_scan:
         mock_get_scan.return_value = mock_scan
+
+        # Configure the mock explanation service to return a fixed string
+        mock_get_explanation.return_value = "Mock AI security explanation."
 
         with patch('app.services.remediation.template_env.get_template') as mock_get_template:
             mock_template = Mock()
@@ -598,8 +668,10 @@ def test_generate_remediation_response_structure():
             remediation = result["remediation"]
             assert "terraform" in remediation
             assert "manual_guidance" in remediation
+            assert "ai_explanations" in remediation  # New field
             assert isinstance(remediation["terraform"], list)
             assert isinstance(remediation["manual_guidance"], list)
+            assert isinstance(remediation["ai_explanations"], list)  # New field
 
             # Check terraform block structure
             if remediation["terraform"]:
@@ -611,12 +683,25 @@ def test_generate_remediation_response_structure():
                 guidance = remediation["manual_guidance"][0]
                 assert set(guidance.keys()) == {"finding_id", "issue_type", "guidance", "priority"}
 
+            # Check AI explanations structure
+            if remediation["ai_explanations"]:
+                explanation = remediation["ai_explanations"][0]
+                assert set(explanation.keys()) == {"issue_type", "explanation"}
+
             # Check metadata structure
             metadata = result["metadata"]
             expected_meta_keys = {"review_required", "terraform_version_required", "generated_resources", "warnings"}
             assert set(metadata.keys()) == expected_meta_keys
             assert isinstance(metadata["warnings"], list)
             assert len(metadata["warnings"]) > 0
+
+            # Additionally, check that the AI explanation was generated correctly
+            assert len(result["remediation"]["ai_explanations"]) == 1
+            ai_explanation = result["remediation"]["ai_explanations"][0]
+            assert ai_explanation["issue_type"] == constants.S3_PUBLIC_BUCKET
+            assert ai_explanation["explanation"] == "Mock AI security explanation."
+            # Verify the mock was called once
+            assert mock_get_explanation.call_count == 1
 
 
 
