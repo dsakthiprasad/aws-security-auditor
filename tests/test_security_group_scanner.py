@@ -12,15 +12,29 @@ from app.services.security_group_scanner import scan_security_groups
 
 class TestSecurityGroupScanner(unittest.TestCase):
 
+    def _configure_mock(self, mock_boto_client, sg_response):
+        """
+        Configure the mocked boto3.client to return a global client for describe_regions
+        and a regional client that returns the provided security group response.
+        """
+        # Mock the global EC2 client (used for describe_regions)
+        mock_global_client = MagicMock()
+        mock_global_client.describe_regions.return_value = {
+            'Regions': [{'RegionName': 'us-east-1'}]
+        }
+
+        # Mock the regional EC2 client (used for describe_security_groups)
+        mock_regional_client = MagicMock()
+        mock_regional_client.describe_security_groups.return_value = sg_response
+
+        # side_effect returns the global client first, then the regional client
+        mock_boto_client.side_effect = [mock_global_client, mock_regional_client]
+
     @patch('app.services.security_group_scanner.boto3.client')
     def test_no_insecure_rules(self, mock_boto_client):
         """Test when no security groups have insecure rules."""
-        # Mock the EC2 client and its describe_security_groups method
-        mock_ec2 = MagicMock()
-        mock_boto_client.return_value = mock_ec2
-
-        # Return a security group with no inbound rules to 0.0.0.0/0 on ports 22 or 3389
-        mock_ec2.describe_security_groups.return_value = {
+        # Security group with no inbound rules
+        sg_response = {
             'SecurityGroups': [
                 {
                     'GroupId': 'sg-0123456789abcdef0',
@@ -29,6 +43,7 @@ class TestSecurityGroupScanner(unittest.TestCase):
                 }
             ]
         }
+        self._configure_mock(mock_boto_client, sg_response)
 
         # Call the function
         result = scan_security_groups(None)
@@ -41,12 +56,8 @@ class TestSecurityGroupScanner(unittest.TestCase):
     @patch('app.services.security_group_scanner.boto3.client')
     def test_ssh_open_to_world(self, mock_boto_client):
         """Test detection of SSH open to 0.0.0.0/0."""
-        # Mock the EC2 client
-        mock_ec2 = MagicMock()
-        mock_boto_client.return_value = mock_ec2
-
-        # Return a security group with SSH open to the world
-        mock_ec2.describe_security_groups.return_value = {
+        # Security group with SSH open to the world
+        sg_response = {
             'SecurityGroups': [
                 {
                     'GroupId': 'sg-0123456789abcdef0',
@@ -64,6 +75,7 @@ class TestSecurityGroupScanner(unittest.TestCase):
                 }
             ]
         }
+        self._configure_mock(mock_boto_client, sg_response)
 
         # Call the function
         result = scan_security_groups(None)
@@ -85,12 +97,8 @@ class TestSecurityGroupScanner(unittest.TestCase):
     @patch('app.services.security_group_scanner.boto3.client')
     def test_rdp_open_to_world(self, mock_boto_client):
         """Test detection of RDP open to 0.0.0.0/0."""
-        # Mock the EC2 client
-        mock_ec2 = MagicMock()
-        mock_boto_client.return_value = mock_ec2
-
-        # Return a security group with RDP open to the world
-        mock_ec2.describe_security_groups.return_value = {
+        # Security group with RDP open to the world
+        sg_response = {
             'SecurityGroups': [
                 {
                     'GroupId': 'sg-0123456789abcdef1',
@@ -108,6 +116,7 @@ class TestSecurityGroupScanner(unittest.TestCase):
                 }
             ]
         }
+        self._configure_mock(mock_boto_client, sg_response)
 
         # Call the function
         result = scan_security_groups(None)
@@ -129,12 +138,8 @@ class TestSecurityGroupScanner(unittest.TestCase):
     @patch('app.services.security_group_scanner.boto3.client')
     def test_multiple_violations_same_sg(self, mock_boto_client):
         """Test a security group with both SSH and RDP open to world."""
-        # Mock the EC2 client
-        mock_ec2 = MagicMock()
-        mock_boto_client.return_value = mock_ec2
-
-        # Return a security group with both issues
-        mock_ec2.describe_security_groups.return_value = {
+        # Security group with both issues
+        sg_response = {
             'SecurityGroups': [
                 {
                     'GroupId': 'sg-0123456789abcdef2',
@@ -160,6 +165,7 @@ class TestSecurityGroupScanner(unittest.TestCase):
                 }
             ]
         }
+        self._configure_mock(mock_boto_client, sg_response)
 
         # Call the function
         result = scan_security_groups(None)
@@ -177,10 +183,14 @@ class TestSecurityGroupScanner(unittest.TestCase):
     @patch('app.services.security_group_scanner.boto3.client')
     def test_aws_api_error(self, mock_boto_client):
         """Test handling of AWS API errors."""
-        # Mock the EC2 client to raise an exception
-        mock_ec2 = MagicMock()
-        mock_boto_client.return_value = mock_ec2
-        mock_ec2.describe_security_groups.side_effect = Exception('AccessDenied')
+        # Mock the EC2 client to raise an Exception on describe_security_groups
+        mock_global_client = MagicMock()
+        mock_global_client.describe_regions.return_value = {
+            'Regions': [{'RegionName': 'us-east-1'}]
+        }
+        mock_regional_client = MagicMock()
+        mock_regional_client.describe_security_groups.side_effect = Exception('AccessDenied')
+        mock_boto_client.side_effect = [mock_global_client, mock_regional_client]
 
         # Call the function
         result = scan_security_groups(None)
@@ -190,19 +200,15 @@ class TestSecurityGroupScanner(unittest.TestCase):
         self.assertEqual(result['findings_count'], 0)
         self.assertEqual(len(result['findings']), 1)
         self.assertEqual(result['findings'][0]['issue'], 'Scan failed')
-        self.assertIn('AccessDenied', result['findings'][0]['details'])
+        self.assertIn("Failed to scan any regions", result["findings"][0]["details"])
 
     # NEW TESTS FOR THE UPDATED LOGIC
 
     @patch('app.services.security_group_scanner.boto3.client')
     def test_ssh_detected_in_port_range(self, mock_boto_client):
         """Test that SSH is detected when a port range includes port 22."""
-        # Mock the EC2 client
-        mock_ec2 = MagicMock()
-        mock_boto_client.return_value = mock_ec2
-
-        # Return a security group with a TCP port range 20-30 open to the world
-        mock_ec2.describe_security_groups.return_value = {
+        # Security group with a TCP port range 20-30 open to the world
+        sg_response = {
             'SecurityGroups': [
                 {
                     'GroupId': 'sg-0123456789abcdef3',
@@ -220,6 +226,7 @@ class TestSecurityGroupScanner(unittest.TestCase):
                 }
             ]
         }
+        self._configure_mock(mock_boto_client, sg_response)
 
         # Call the function
         result = scan_security_groups(None)
@@ -242,12 +249,8 @@ class TestSecurityGroupScanner(unittest.TestCase):
     @patch('app.services.security_group_scanner.boto3.client')
     def test_all_traffic_rule_detected(self, mock_boto_client):
         """Test that an \"All Traffic\" rule (IpProtocol = '-1') is detected."""
-        # Mock the EC2 client
-        mock_ec2 = MagicMock()
-        mock_boto_client.return_value = mock_ec2
-
-        # Return a security group with IpProtocol: '-1' open to the world
-        mock_ec2.describe_security_groups.return_value = {
+        # Security group with IpProtocol: '-1' open to the world
+        sg_response = {
             'SecurityGroups': [
                 {
                     'GroupId': 'sg-0123456789abcdef4',
@@ -264,6 +267,7 @@ class TestSecurityGroupScanner(unittest.TestCase):
                 }
             ]
         }
+        self._configure_mock(mock_boto_client, sg_response)
 
         # Call the function
         result = scan_security_groups(None)

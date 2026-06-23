@@ -1,108 +1,110 @@
+import os
 import unittest
 from unittest.mock import patch, Mock
-import requests
 
 from app import constants
-from app.services.explanation import get_security_explanation, _get_explanation_from_llm, FALLBACK_EXPLANATIONS
+from app.services.explanation import (
+    get_security_explanation,
+    _get_explanation_from_llm,
+    FALLBACK_EXPLANATIONS,
+)
 
 
 class TestExplanationService(unittest.TestCase):
 
     def setUp(self):
-        # Clear the cache before each test to ensure isolation
         _get_explanation_from_llm.cache_clear()
+        os.environ["GEMINI_API_KEY"] = "test-api-key"
 
-    @patch('app.services.explanation.requests.post')
-    def test_successful_llm_response(self, mock_post):
-        """Test A: Verify a successful mocked LLM response returns correctly."""
-        # Arrange
+    def tearDown(self):
+        if "GEMINI_API_KEY" in os.environ:
+            del os.environ["GEMINI_API_KEY"]
+
+    @patch("app.services.explanation.genai.GenerativeModel")
+    @patch("app.services.explanation.genai.configure")
+    def test_successful_llm_response(self, mock_configure, mock_model_class):
+        """Gemini returns a valid explanation."""
+
+        mock_model = Mock()
         mock_response = Mock()
-        mock_response.json.return_value = {"response": "This is a test explanation."}
-        mock_response.raise_for_status.return_value = None
-        mock_post.return_value = mock_response
+        mock_response.text = "This is a test explanation."
 
-        issue_type = constants.S3_PUBLIC_BUCKET
-        details = "Bucket named 'test-bucket' is publicly readable."
+        mock_model.generate_content.return_value = mock_response
+        mock_model_class.return_value = mock_model
 
-        # Act
-        explanation = get_security_explanation(issue_type, details)
+        explanation = get_security_explanation(
+            constants.S3_PUBLIC_BUCKET,
+            "Bucket is public."
+        )
 
-        # Assert
         self.assertEqual(explanation, "This is a test explanation.")
-        mock_post.assert_called_once()
-        # Check that the request was made with the correct parameters
-        args, kwargs = mock_post.call_args
-        self.assertEqual(args[0], "http://localhost:11434/api/generate")
-        self.assertEqual(kwargs["json"]["model"], "qwen2.5:1.5b")
-        self.assertIn("prompt", kwargs["json"])
-        self.assertEqual(kwargs["timeout"], 10)
 
-    @patch('app.services.explanation.requests.post')
-    def test_timeout_triggers_fallback(self, mock_post):
-        """Test B: Verify that a requests.exceptions.Timeout triggers the graceful fallback string."""
-        # Arrange
-        mock_post.side_effect = requests.exceptions.Timeout("Request timed out")
+        mock_configure.assert_called_once_with(api_key="test-api-key")
+        mock_model.generate_content.assert_called_once()
 
-        issue_type = constants.S3_PUBLIC_BUCKET
-        details = ""
+    @patch("app.services.explanation.genai.GenerativeModel")
+    @patch("app.services.explanation.genai.configure")
+    def test_api_failure_triggers_fallback(self, mock_configure, mock_model_class):
+        """Gemini failure should return fallback explanation."""
 
-        # Act
-        explanation = get_security_explanation(issue_type, details)
+        mock_model = Mock()
+        mock_model.generate_content.side_effect = Exception("Gemini API failure")
+        mock_model_class.return_value = mock_model
 
-        # Assert
-        self.assertEqual(explanation, FALLBACK_EXPLANATIONS[issue_type])
-        mock_post.assert_called_once()
+        explanation = get_security_explanation(
+            constants.S3_PUBLIC_BUCKET,
+            ""
+        )
 
-    @patch('app.services.explanation.requests.post')
-    def test_connection_error_triggers_fallback(self, mock_post):
-        """Test C: Verify that a requests.exceptions.ConnectionError triggers the graceful fallback."""
-        # Arrange
-        mock_post.side_effect = requests.exceptions.ConnectionError("Failed to connect")
+        self.assertEqual(
+            explanation,
+            FALLBACK_EXPLANATIONS[constants.S3_PUBLIC_BUCKET]
+        )
 
-        issue_type = constants.SG_SSH_OPEN
-        details = ""
+    def test_missing_api_key(self):
+        """Missing API key returns an error."""
 
-        # Act
-        explanation = get_security_explanation(issue_type, details)
+        del os.environ["GEMINI_API_KEY"]
 
-        # Assert
-        self.assertEqual(explanation, FALLBACK_EXPLANATIONS[issue_type])
-        mock_post.assert_called_once()
+        explanation = get_security_explanation(
+            constants.S3_PUBLIC_BUCKET,
+            ""
+        )
 
-    @patch('app.services.explanation.requests.post')
-    def test_caching_prevents_duplicate_calls(self, mock_post):
-        """Test D: Verify the caching mechanism works (mock is only called once for duplicate requests)."""
-        # Arrange
+        self.assertTrue(
+            explanation.startswith("Error: GEMINI_API_KEY")
+        )
+
+    @patch("app.services.explanation.genai.GenerativeModel")
+    @patch("app.services.explanation.genai.configure")
+    def test_cache(self, mock_configure, mock_model_class):
+        """LLM should only be called once because of lru_cache."""
+
+        mock_model = Mock()
         mock_response = Mock()
-        mock_response.json.return_value = {"response": "Cached explanation."}
-        mock_response.raise_for_status.return_value = None
-        mock_post.return_value = mock_response
+        mock_response.text = "Cached explanation"
 
-        issue_type = constants.IAM_OLD_KEY
-        details = "Access key AKIA... created 100 days ago."
+        mock_model.generate_content.return_value = mock_response
+        mock_model_class.return_value = mock_model
 
-        # Act
-        explanation1 = get_security_explanation(issue_type, details)
-        explanation2 = get_security_explanation(issue_type, details)
+        explanation1 = get_security_explanation(
+            constants.IAM_OLD_KEY,
+            "same"
+        )
 
-        # Assert
-        self.assertEqual(explanation1, "Cached explanation.")
-        self.assertEqual(explanation2, "Cached explanation.")
-        # The mock should have been called only once due to caching
-        mock_post.assert_called_once()
+        explanation2 = get_security_explanation(
+            constants.IAM_OLD_KEY,
+            "same"
+        )
 
-        # Also verify that different arguments produce different calls (cache miss)
-        mock_post.reset_mock()
-        explanation3 = get_security_explanation(issue_type, "Different details")
-        self.assertEqual(explanation3, "Cached explanation.")  # Still cached from the first call? Wait, different details.
-        # Actually, the second call with different details should not hit the cache for the first call.
-        # But note: we are using the same issue_type but different details, so it's a different cache key.
-        # However, we reset the mock and then made a new call with different details.
-        # The mock should be called again.
-        self.assertEqual(mock_post.call_count, 1)
-        # And the explanation should be the same because we returned the same mocked response.
-        self.assertEqual(explanation3, "Cached explanation.")
+        self.assertEqual(explanation1, "Cached explanation")
+        self.assertEqual(explanation2, "Cached explanation")
+
+        self.assertEqual(
+            mock_model.generate_content.call_count,
+            1
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
