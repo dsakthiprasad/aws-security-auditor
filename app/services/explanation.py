@@ -1,19 +1,19 @@
 """
-AI Explanation service using local Ollama LLM.
+AI Explanation service using Google Gemini LLM.
 """
-import json
+import os
 import logging
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-import requests
+import google.generativeai as genai
 
 from app import constants
 
 logger = logging.getLogger(__name__)
 
-# Fallback explanations for when Ollama is unavailable
+# Fallback explanations for when Gemini is unavailable
 FALLBACK_EXPLANATIONS = {
     constants.S3_PUBLIC_BUCKET: (
         "This S3 bucket is publicly accessible, allowing anyone on the internet to read or write "
@@ -77,33 +77,38 @@ def _format_prompt(issue_type: str, details: str = "") -> str:
 @lru_cache(maxsize=128)
 def _get_explanation_from_llm(issue_type: str, details: str) -> str:
     """
-    Get explanation from the local Ollama LLM.
-    Raises requests.exceptions.RequestException on failure.
+    Get explanation from the Google Gemini LLM.
+    Raises ValueError if GEMINI_API_KEY is not set.
+    Raises Exception on failure to generate content.
     """
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY environment variable is not set")
+
+    # Configure the Gemini API
+    genai.configure(api_key=api_key)
+
+    # Use the Gemini 1.5 Flash model for fast, quality responses
+    model = genai.GenerativeModel("gemini-1.5-flash")
+
     prompt = _format_prompt(issue_type, details)
-    payload = {
-        "model": "qwen2.5:1.5b",
-        "prompt": prompt,
-        "stream": False,
-    }
-    response = requests.post(
-        "http://localhost:11434/api/generate",
-        json=payload,
-        timeout=10,
-    )
-    response.raise_for_status()
-    result = response.json()
-    # The Ollama API returns a JSON with a "response" field containing the generated text.
-    explanation = result.get("response", "").strip()
+
+    # Generate content
+    response = model.generate_content(prompt)
+
+    # Extract the text from the response
+    explanation = response.text.strip()
+
     if not explanation:
-        raise ValueError("Empty response from Ollama")
+        raise ValueError("Empty response from Gemini")
+
     return explanation
 
 
 def get_security_explanation(issue_type: str, details: str = "") -> str:
     """
     Get a concise security explanation for the given AWS issue type.
-    Uses local Ollama LLM with fallback to hardcoded explanations on failure.
+    Uses Google Gemini LLM with fallback to hardcoded explanations on failure.
     Results are cached for performance.
 
     Args:
@@ -115,10 +120,14 @@ def get_security_explanation(issue_type: str, details: str = "") -> str:
     """
     try:
         return _get_explanation_from_llm(issue_type, details)
-    except (requests.exceptions.Timeout, requests.exceptions.ConnectionError,
-            requests.exceptions.RequestException, ValueError) as e:
-        logger.warning(f"Failed to get explanation from Ollama for {issue_type}: {e}. Using fallback.")
-        # Return fallback explanation if available, otherwise a generic message.
+    except ValueError as e:
+        # Specifically handle missing API key
+        error_msg = str(e)
+        logger.error(error_msg)
+        return f"Error: {error_msg}"
+    except Exception as e:
+        # For any other error (API issues, timeouts, etc.), use fallback
+        logger.warning(f"Failed to get explanation from Gemini for {issue_type}: {e}. Using fallback.")
         return FALLBACK_EXPLANATIONS.get(
             issue_type,
             f"Security issue detected: {issue_type}. Please review AWS security best practices "

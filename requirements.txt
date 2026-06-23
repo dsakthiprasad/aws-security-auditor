@@ -3,3 +3,5 @@ uvicorn
 sqlalchemy
 Jinja2>=3.1.0
 requests
+boto3
+google-generativeai
