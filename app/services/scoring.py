@@ -48,7 +48,12 @@ def calculate_security_score(findings: List[Dict[str, Any]]) -> int:
 
     # Process each finding
     for finding in findings:
-        issue_type = finding.get("issue", "")
+        issue_type = (
+            finding.get("issue")
+            or finding.get("issue_type")
+            or finding.get("finding_data", {}).get("issue")
+            or ""
+        )
 
         # Skip error findings (scanner failures)
         if issue_type in SCANNER_ERROR_FINDINGS:
@@ -128,7 +133,12 @@ def calculate_severity_breakdown(findings: List[Dict[str, Any]]) -> Dict[str, in
 
     # Count each finding by severity
     for finding in findings:
-        issue_type = finding.get("issue", "")
+        issue_type = (
+            finding.get("issue")
+            or finding.get("issue_type")
+            or finding.get("finding_data", {}).get("issue")
+            or ""
+        )
 
         # Skip error findings
         if issue_type in SCANNER_ERROR_FINDINGS:

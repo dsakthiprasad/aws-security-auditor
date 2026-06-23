@@ -6,11 +6,12 @@ This module provides endpoints to retrieve historical scan data.
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Dict
 
 from app.crud.scan import get_scan_by_scan_id, get_all_scans
 from app.db.session import get_db
 from app.models.scan import ScanResponse
+from app.services.scoring import calculate_severity_breakdown
 
 router = APIRouter()
 
@@ -69,6 +70,9 @@ def get_scan(scan_id: str, db: Session = Depends(get_db)):
             "discovered_at": finding_dict["discovered_at"]
         })
 
+    # Calculate severity breakdown from findings
+    severity_breakdown = calculate_severity_breakdown(findings)
+
     return {
         "scan_id": db_scan.scan_id,
         "status": db_scan.status,
@@ -77,5 +81,6 @@ def get_scan(scan_id: str, db: Session = Depends(get_db)):
         "findings_count": db_scan.findings_count,
         "security_score": db_scan.security_score,
         "risk_level": db_scan.risk_level,
+        "severity_breakdown": severity_breakdown,
         "findings": findings
     }

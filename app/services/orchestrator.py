@@ -100,29 +100,25 @@ def run_full_scan(request, db=None):
     # Process S3 findings
     if s3_result and 'findings' in s3_result:
         for finding in s3_result['findings']:
-            # If this is an error finding (indicated by issue being 'Scan failed' or similar),
-            # add scanner identification
-            if s3_status == 'failed' and finding.get('issue') == 'Scan failed':
-                finding = finding.copy()  # Don't modify original
-                finding['scanner'] = 's3'
+            # Add scanner identification to all findings
+            finding = finding.copy()  # Don't modify original
+            finding['scanner'] = 's3'
             all_findings.append(finding)
 
     # Process Security Group findings
     if sg_result and 'findings' in sg_result:
         for finding in sg_result['findings']:
-            # If this is an error finding, add scanner identification
-            if sg_status == 'failed' and finding.get('issue') in ['Scan failed', 'AWS API error']:
-                finding = finding.copy()  # Don't modify original
-                finding['scanner'] = 'security_group'
+            # Add scanner identification to all findings
+            finding = finding.copy()  # Don't modify original
+            finding['scanner'] = 'security_group'
             all_findings.append(finding)
 
     # Process IAM findings
     if iam_result and 'findings' in iam_result:
         for finding in iam_result['findings']:
-            # If this is an error finding, add scanner identification
-            if iam_status == 'failed' and finding.get('issue') in ['IAM scan failed due to AWS API error', 'Unexpected error during IAM scan']:
-                finding = finding.copy()  # Don't modify original
-                finding['scanner'] = 'iam'
+            # Add scanner identification to all findings
+            finding = finding.copy()  # Don't modify original
+            finding['scanner'] = 'iam'
             all_findings.append(finding)
 
     # Calculate total findings count

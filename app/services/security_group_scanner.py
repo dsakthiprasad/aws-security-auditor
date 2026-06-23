@@ -1,11 +1,14 @@
 import boto3
 from botocore.exceptions import ClientError
 import uuid
+import logging
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 def scan_security_groups(request):
     """
-    Scan EC2 Security Groups for insecure inbound rules.
+    Scan EC2 Security Groups for insecure inbound rules across all regions.
 
     This function checks all EC2 Security Groups in the account for inbound rules
     that allow SSH (port 22) or RDP (port 3389) from the entire internet (0.0.0.0/0).
@@ -30,65 +33,112 @@ def scan_security_groups(request):
                 - direction: Always 'ingress' for this scanner.
     """
     findings = []
+    # We'll track if any region had an error, but we'll still return completed if at least one region succeeded
+    regions_processed = 0
+    regions_with_error = 0
 
     try:
-        # Create an EC2 client to interact with AWS EC2 service
+        # Create an EC2 client for the default region to get the list of regions
         ec2_client = boto3.client('ec2')
+        logger.debug(f"EC2 client region: {ec2_client.meta.region_name}")
 
-        # Retrieve all Security Groups in the account
-        response = ec2_client.describe_security_groups()
-        security_groups = response.get('SecurityGroups', [])
+        # Get the list of all regions
+        regions_response = ec2_client.describe_regions()
+        regions = [region['RegionName'] for region in regions_response.get('Regions', [])]
+        logger.debug(f"Found {len(regions)} regions: {regions}")
 
-        # Iterate over each Security Group
-        for sg in security_groups:
-            group_id = sg['GroupId']
-            group_name = sg['GroupName']
+        # Iterate over each region
+        for region in regions:
+            logger.debug(f"Scanning region: {region}")
+            try:
+                # Create an EC2 client for the specific region
+                regional_ec2 = boto3.client('ec2', region_name=region)
 
-            # Check the inbound rules (IpPermissions) of the Security Group
-            for permission in sg.get('IpPermissions', []):
-                # Get protocol and port range from the permission
-                ip_protocol = permission.get('IpProtocol')
-                # Use .get to avoid KeyError if FromPort/ToPort are missing (e.g., for "-1")
-                from_port = permission.get('FromPort')
-                to_port = permission.get('ToPort')
+                # Retrieve all Security Groups in the region
+                response = regional_ec2.describe_security_groups()
+                security_groups = response.get('SecurityGroups', [])
+                logger.debug(f"  Found {len(security_groups)} security groups in {region}")
 
-                # Check each IP range in the permission
-                for ip_range in permission.get('IpRanges', []):
-                    cidr = ip_range.get('CidrIp')
-                    # We are only concerned with 0.0.0.0/0 (open to the internet)
-                    if cidr == '0.0.0.0/0':
-                        # Check for "All Traffic" rule (all protocols, all ports)
-                        if ip_protocol == '-1':
-                            findings.append({
-                                "group_id": group_id,
-                                "group_name": group_name,
-                                "issue": "All Traffic open to 0.0.0.0/0",
-                                "details": f"Protocol: {ip_protocol}, Source: {cidr}",
-                                "direction": "ingress"
-                            })
-                            # No need to check ports for this rule
-                            continue
+                # Iterate over each Security Group
+                for sg in security_groups:
+                    group_id = sg['GroupId']
+                    group_name = sg['GroupName']
+                    logger.debug(f"    Checking security group: {group_id} ({group_name})")
 
-                        # For TCP rules, check if the port range includes SSH or RDP
-                        if ip_protocol == 'tcp' and from_port is not None and to_port is not None:
-                            # Check for SSH (port 22) in the range
-                            if from_port <= 22 <= to_port:
-                                findings.append({
-                                    "group_id": group_id,
-                                    "group_name": group_name,
-                                    "issue": "SSH open to 0.0.0.0/0",
-                                    "details": f"Protocol: {ip_protocol}, Ports: {from_port}-{to_port}, Source: {cidr}",
-                                    "direction": "ingress"
-                                })
-                            # Check for RDP (port 3389) in the range
-                            if from_port <= 3389 <= to_port:
-                                findings.append({
-                                    "group_id": group_id,
-                                    "group_name": group_name,
-                                    "issue": "RDP open to 0.0.0.0/0",
-                                    "details": f"Protocol: {ip_protocol}, Ports: {from_port}-{to_port}, Source: {cidr}",
-                                    "direction": "ingress"
-                                })
+                    # Check the inbound rules (IpPermissions) of the Security Group
+                    for permission in sg.get('IpPermissions', []):
+                        # Get protocol and port range from the permission
+                        ip_protocol = permission.get('IpProtocol')
+                        # Use .get to avoid KeyError if FromPort/ToPort are missing (e.g., for "-1")
+                        from_port = permission.get('FromPort')
+                        to_port = permission.get('ToPort')
+                        logger.debug(f"      Permission: ip_protocol={ip_protocol}, from_port={from_port}, to_port={to_port}")
+
+                        # Check each IP range in the permission
+                        for ip_range in permission.get('IpRanges', []):
+                            cidr = ip_range.get('CidrIp')
+                            logger.debug(f"        IP Range: {cidr}")
+                            # We are only concerned with 0.0.0.0/0 (open to the internet)
+                            if cidr == '0.0.0.0/0':
+                                # Check for "All Traffic" rule (all protocols, all ports)
+                                if ip_protocol == '-1':
+                                    findings.append({
+                                        "group_id": group_id,
+                                        "group_name": group_name,
+                                        "issue": "All Traffic open to 0.0.0.0/0",
+                                        "details": f"Protocol: {ip_protocol}, Source: {cidr}",
+                                        "direction": "ingress"
+                                    })
+                                    logger.debug(f"        Found All Traffic rule for {group_id}")
+                                    # No need to check ports for this rule
+                                    continue
+
+                                # For TCP rules, check if the port range includes SSH or RDP
+                                if ip_protocol == 'tcp' and from_port is not None and to_port is not None:
+                                    # Check for SSH (port 22) in the range
+                                    if from_port <= 22 <= to_port:
+                                        findings.append({
+                                            "group_id": group_id,
+                                            "group_name": group_name,
+                                            "issue": "SSH open to 0.0.0.0/0",
+                                            "details": f"Protocol: {ip_protocol}, Ports: {from_port}-{to_port}, Source: {cidr}",
+                                            "direction": "ingress"
+                                        })
+                                        logger.debug(f"        Found SSH rule for {group_id}")
+                                    # Check for RDP (port 3389) in the range
+                                    if from_port <= 3389 <= to_port:
+                                        findings.append({
+                                            "group_id": group_id,
+                                            "group_name": group_name,
+                                            "issue": "RDP open to 0.0.0.0/0",
+                                            "details": f"Protocol: {ip_protocol}, Ports: {from_port}-{to_port}, Source: {cidr}",
+                                            "direction": "ingress"
+                                        })
+                                        logger.debug(f"        Found RDP rule for {group_id}")
+                            # End IP range loop
+                        # End permission loop
+                    # End security group loop
+                regions_processed += 1
+                logger.debug(f"Finished scanning region: {region}")
+            except ClientError as e:
+                logger.error(f"AWS API error in region {region}: {e}")
+                regions_with_error += 1
+                # Continue to next region
+                continue
+            except Exception as e:
+                logger.error(f"Unexpected error in region {region}: {e}")
+                regions_with_error += 1
+                # Continue to next region
+                continue
+
+        # If we processed at least one region without error, we consider the scan completed
+        # Even if some regions had errors, we still return the findings we got
+        if regions_processed == 0:
+            # No regions were processed successfully
+            raise Exception("Failed to scan any regions")
+
+        logger.debug(f"Scan completed. Processed {regions_processed} regions, {regions_with_error} regions with errors.")
+        logger.debug(f"Total findings: {len(findings)}")
 
         # Return the scan results
         return {
@@ -99,7 +149,8 @@ def scan_security_groups(request):
         }
 
     except ClientError as e:
-        # If there's an error communicating with AWS, return a failed status
+        # If there's an error communicating with AWS (e.g., getting regions), return a failed status
+        logger.error(f"AWS API error: {e}")
         return {
             "scan_id": str(uuid.uuid4()),
             "status": "failed",
@@ -112,6 +163,7 @@ def scan_security_groups(request):
 
     except Exception as e:
         # If an unexpected error occurs during the scan, return a failed status
+        logger.error(f"Scan failed: {e}")
         return {
             "scan_id": str(uuid.uuid4()),
             "status": "failed",
