@@ -1,6 +1,8 @@
 """
 Terraform remediation API endpoints.
 """
+import os
+from app.demo.demo_remediation import generate_demo_remediation
 from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.orm import Session
 from typing import Dict, Any
@@ -30,10 +32,22 @@ def get_remediation(
         HTTPException: 404 if scan is not found, 500 for internal errors.
     """
     try:
+        # Check if demo mode is enabled
+        demo_mode = os.getenv("DEMO_MODE", "false").lower() == "true"
+
+        if demo_mode:
+            logger.info("DEMO_MODE enabled - returning demo remediation")
+            return generate_demo_remediation(scan_id)
+
         remediation_data = generate_remediation(db, scan_id)
         return remediation_data
+
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
     except Exception as e:
         # Log the error (in a real app, use logging)
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
