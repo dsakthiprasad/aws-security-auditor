@@ -1,9 +1,22 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware  
 from app.api.v1.endpoints import health, scan, history, remediation
 from app.db.session import engine
 from app.models.db import Base
 
 app = FastAPI(title="AWS Security & Compliance Auditor", version="0.1.0")
+origins = [
+    "https://aws-security-auditor.vercel.app",
+    "https://aws-security-auditor-c80g1k7tr-sakthi-dev.vercel.app",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.on_event("startup")
