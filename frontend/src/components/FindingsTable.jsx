@@ -25,42 +25,36 @@ const FindingsTable = ({ findings }) => {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th
-                scope="col"
-                className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
+              <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Scanner
               </th>
-              <th
-                scope="col"
-                className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
+
+              <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Issue
               </th>
-              <th
-                scope="col"
-                className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
+
+              <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 User / Resource
               </th>
-              <th
-                scope="col"
-                className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
+
+              <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Details
               </th>
             </tr>
           </thead>
+
           <tbody className="bg-white divide-y divide-gray-200">
-            {findings.map((finding) => {
+            {findings.map((finding, index) => {
               const data = finding.finding_data || {};
 
               const issue =
+                finding.issue ||
                 finding.issue_type ||
                 data.issue ||
                 "Unknown";
 
               const resource =
+                finding.resource_id ||
                 data.user ||
                 data.bucket ||
                 data.group ||
@@ -68,27 +62,37 @@ const FindingsTable = ({ findings }) => {
                 "-";
 
               const details =
+                finding.description ||
                 data.details ||
                 "-";
 
-              // Determine scanner badge color
               let scannerClass = "bg-gray-100 text-gray-800";
-              if (finding.scanner === "IAM") {
+
+              if (finding.scanner === "iam") {
                 scannerClass = "bg-purple-100 text-purple-800";
-              } else if (finding.scanner === "S3") {
+              } else if (finding.scanner === "s3") {
                 scannerClass = "bg-blue-100 text-blue-800";
-              } else if (finding.scanner === "Security Group") {
+              } else if (finding.scanner === "security_group") {
                 scannerClass = "bg-orange-100 text-orange-800";
               }
 
+              const scannerLabel =
+                finding.scanner === "security_group"
+                  ? "Security Group"
+                  : finding.scanner
+                  ? finding.scanner.toUpperCase()
+                  : "Unknown";
+
               return (
                 <tr
-                  key={finding.id}
+                  key={finding.resource_id || finding.id || index}
                   className="hover:bg-gray-50 transition-colors"
                 >
-                  <td className="px-6 py-4 font-semibold capitalize whitespace-nowrap">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${scannerClass}`}>
-                      {finding.scanner}
+                  <td className="px-6 py-4 font-semibold whitespace-nowrap">
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${scannerClass}`}
+                    >
+                      {scannerLabel}
                     </span>
                   </td>
 
@@ -96,7 +100,7 @@ const FindingsTable = ({ findings }) => {
                     {issue}
                   </td>
 
-                  <td className="px-6 py-4 font-mono text-sm">
+                  <td className="px-6 py-4 font-mono text-sm break-all">
                     <span className="bg-gray-50 rounded-full px-2 py-0.5">
                       {resource}
                     </span>
