@@ -63,10 +63,10 @@ const DashboardPage = () => {
         setLoading(false);
       }
     };
-*/
+
     fetchResults();
   }, [scanId]);
-
+*/
   return (
     <div className="space-y-8">
       <div className="text-center">
