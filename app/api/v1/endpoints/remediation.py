@@ -2,6 +2,8 @@
 Terraform remediation API endpoints.
 """
 import os
+import logging
+logger = logging.getLogger(__name__)
 from app.demo.demo_remediation import generate_demo_remediation
 from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.orm import Session
