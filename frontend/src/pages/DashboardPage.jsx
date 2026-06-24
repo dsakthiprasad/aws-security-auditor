@@ -13,8 +13,9 @@ const DashboardPage = () => {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const dashboardRef = useRef(null);
 
-  const handleScanSuccess = (id) => {
-    setScanId(id);
+  const handleScanSuccess = (scan) => {
+    setScanId(scan.scan_id);
+    setScanData(scan);
   };
 
   const exportToPDF = async () => {
@@ -45,7 +46,7 @@ const DashboardPage = () => {
       setIsGeneratingPDF(false);
     }
   };
-
+/*
   useEffect(() => {
     if (!scanId) return;
 
@@ -62,7 +63,7 @@ const DashboardPage = () => {
         setLoading(false);
       }
     };
-
+*/
     fetchResults();
   }, [scanId]);
 

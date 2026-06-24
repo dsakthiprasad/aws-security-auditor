@@ -14,10 +14,10 @@ const ScannerPanel = ({ onScanSuccess }) => {
       const response = await api.post('/scan', {
         aws_account_id: "local-dev-account",
       });
-      const id = response.data.scan_id;
-      setScanId(id);
+      setScanId(response.data.scan_id);
+      
       if (onScanSuccess) {
-        onScanSuccess(id);
+        onScanSuccess(response.data);
       }
     } catch (err) {
       let message = "Unknown error";
