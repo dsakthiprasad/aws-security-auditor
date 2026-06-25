@@ -1,109 +1,101 @@
 # AI-Powered AWS Security Auditor with Intelligent Terraform Remediation
-
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
-[![React](https://img.shields.io/badge/react-%5E18.0.0-blue)](https://reactjs.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.95.0-green)](https://fastapi.tiangolo.com/)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
+[![React](https://img.shields.io/badge/react-%5E19.0.0-blue)](https://reactjs.org/)
 [![Docker](https://img.shields.io/badge/docker-%20%20%20%20%20-blue)](https://www.docker.com/)
-[![CI/CD](https://github.com/your-username/aws-security-auditor/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/your-username/aws-security-auditor/actions)
+[![GitHub Actions CI](https://github.com/dsakthiprasad/aws-security-auditor/actions/workflows/ci.yml/badge.svg)](https://github.com/dsakthiprasad/aws-security-auditor/actions)
+## 🚀 Live Demo
+
+- **Frontend:** https://aws-security-auditor.vercel.app/
+- **Backend API:** https://aws-security-auditor.onrender.com
+- **Swagger Documentation:** https://aws-security-auditor.onrender.com/docs
+
 
 ## Overview
+This project demonstrates cloud security automation, Infrastructure-as-Code generation, AI-assisted remediation, and modern full-stack deployment using AWS, FastAPI, React, Docker, Render, and Vercel.
 
-AI-Powered AWS Security Auditor is a comprehensive security scanning and remediation platform designed to help organizations continuously monitor and improve their AWS security posture. The platform combines automated AWS resource scanning with AI-generated remediation guidance and intelligent Terraform code generation for effortless infrastructure-as-code security fixes.
+AI-Powered AWS Security Auditor is a security scanning and remediation tool that evaluates AWS accounts for common misconfigurations and provides actionable guidance to improve security posture. The platform performs automated checks for S3 bucket public access, insecure security group rules, and IAM security issues, then generates clear explanations (using Google Gemini LLM), manual remediation steps, and Terraform code to fix findings where possible.
 
-Built with a modern full-stack architecture using FastAPI (backend) and React (frontend), the auditor provides real-time security scoring, detailed findings, and actionable remediation steps through an intuitive dashboard.
+Built with a modern full-stack architecture using FastAPI (backend) and React (frontend), the auditor delivers results through an interactive dashboard featuring security scoring, visualizations, and PDF export capabilities.
+
+
 
 ## Features
 
 ### Core Scanning Capabilities
-- **AWS Security Scanning**: Comprehensive assessment of AWS accounts against security best practices
-- **IAM Scanner**: Analyze users, roles, groups, and policies for overprivileged permissions and security risks
-- **S3 Scanner**: Detect publicly accessible buckets, missing encryption, and insufficient access controls
-- **Security Group Scanner**: Identify overly permissive inbound/outbound rules and unused security groups
-- **Automated Remediation**: Generate Terraform code to fix identified security issues
-- **AI-Powered Explanations**: Leverage LLMs to provide clear, contextual remediation guidance
-- **Manual Remediation Guidance**: Step-by-step instructions for console-based fixes
-- **Security Scoring Dashboard**: Visualize overall security posture with detailed breakdowns
-- **PDF Report Generation**: Export detailed reports for compliance and auditing purposes
-- **Demo Mode**: Fully functional demonstration with sample data for exploration
+- **AWS Security Scanning**: Automated assessment of AWS accounts for:
+  - Publicly accessible S3 buckets
+  - Insecure security group rules (SSH/RDP open to 0.0.0.0/0, all-traffic open)
+  - IAM issues (users without MFA, old access keys, excessive privileges)
+- **AI-Powered Explanations**: Leverages Google Gemini LLM to generate clear, contextual explanations for each finding (with fallback hardcoded explanations).
+- **Terraform Remediation Generation**: Creates ready-to-apply Terraform code for supported finding types (S3 public buckets, SSH/RDP-open security groups, old IAM access keys).
+- **Manual Remediation Guidance**: Provides step-by-step console/CLI instructions for findings that cannot be automated via Terraform.
+- **Security Scoring Dashboard**: Calculates a compliance score (0-100) and risk level based on findings severity, visualized with charts and summary cards.
+- **PDF Report Generation**: Export dashboard view as a PDF report for sharing and archival.
+- **Demo Mode**: Run with simulated data (no AWS credentials required) for exploration and demonstrations.
+- **Docker Support**: Containerized backend and frontend for consistent deployment.
+- **CI/CD Pipeline**: GitHub Actions workflow that builds, tests (frontend), and creates Docker images.
 
 ### Technical Features
-- **Modern Tech Stack**: FastAPI, SQLAlchemy, React, Tailwind CSS, Chart.js
-- **Containerized**: Docker support for consistent deployment across environments
-- **CI/CD Ready**: GitHub Actions workflow for automated testing and deployment
-- **Cloud Deployable**: Preconfigured for Render (backend) and Vercel (frontend)
-- **Extensible Architecture**: Modular design for adding new scanners and compliance frameworks
+- **Backend**: FastAPI, SQLAlchemy (SQLite), Google Gemini API, boto3
+- **Frontend**: React 19, Vite, Tailwind CSS, Axios, Recharts (for charts), html2pdf.js (PDF export)
+- **API**: RESTful endpoints with JSON responses
+- **Database**: SQLite for storing scan history and results
+- **Authentication**: None (intended for trusted environments; add auth as needed for production)
 
 ## Architecture
-
-![Architecture Diagram](docs/architecture.png)
 
 The application follows a client-server architecture:
 
 ### Backend (FastAPI)
-- **API Layer**: RESTful endpoints built with FastAPI for high performance and automatic OpenAPI documentation
-- **Service Layer**: Business logic including AWS scanning services, AI integration, and Terraform generation
-- **Data Layer**: SQLAlchemy ORM with SQLite for storing scan results, configurations, and user preferences
-- **AWS Integration**: Boto3 SDK for secure interaction with AWS APIs
-- **AI Service**: Integration with LLMs for generating remediation explanations and guidance
+- **API Layer**: RESTful endpoints built with FastAPI for performance and automatic OpenAPI documentation.
+- **Service Layer**: Separate services for each scanner (S3, Security Groups, IAM), AI explanations, Terraform remediation generation, and scoring.
+- **Data Layer**: SQLAlchemy ORM with SQLite database for persisting scan results and history.
+- **AWS Integration**: Boto3 SDK for secure interaction with AWS APIs (uses default credential chain).
+- **AI Service**: Integration with Google Gemini (via `google-generativeai`) for generating remediation explanations.
 
 ### Frontend (React)
-- **UI Framework**: React 18 with hooks for modern state management
-- **Styling**: Tailwind CSS for responsive, utility-first design
-- **Data Visualization**: Chart.js for interactive security dashboards
-- **State Management**: React Context and hooks for scalable state handling
-- **HTTP Client**: Axios for efficient API communication
-
-### Deployment
-- **Backend**: Deployed to Render as a web service
-- **Frontend**: Deployed to Vercel for optimal React hosting
-- **Database**: SQLite for development/testing, configurable for production databases
-- **Containerization**: Docker Compose for local development and testing
+- **UI Framework**: React 19 with hooks for state management.
+- **Styling**: Tailwind CSS for responsive, utility-first design.
+- **Data Visualization**: Recharts for interactive security dashboards; html2pdf.js for PDF export.
+- **State Management**: React Context and hooks (or local state) for managing scan data and UI state.
+- **HTTP Client**: Axios for efficient API communication to the backend.
+- **Build Tool**: Vite for fast development and production builds.
 
 ## Screenshots
 
-![Dashboard](docs/screenshots/dashboard.png)
-*Security Dashboard showing overall score and findings breakdown*
-
-![Scan Results](docs/screenshots/scan-results.png)
-*Detailed scan findings with severity filtering and resource details*
-
-![Remediation](docs/screenshots/remediation.png)
-*AI-generated remediation explanations and Terraform code snippets*
-
-![Reports](docs/screenshots/report.png)
-*Generated PDF report with executive summary and technical details*
+- Dashboard Screenshot (Coming Soon)
+- Security Findings Screenshot (Coming Soon)
+- AI Remediation Screenshot (Coming Soon)
+- PDF Report Screenshot (Coming Soon)
 
 ## Installation
 
 ### Prerequisites
-- Python 3.8 or higher
-- Node.js 16 or higher
+- Python 3.12 or higher
+- Node.js 22 or higher
 - Docker (optional, for containerized deployment)
 - AWS Account (for live scanning; Demo Mode uses simulated data)
 
 ### Backend Setup
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/aws-security-auditor.git
+git clone https://github.com/dsakthiprasad/aws-security-auditor.git
 cd aws-security-auditor
 
-# Create and activate virtual environment
+# Create and activate virtual environment (optional but recommended)
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
-pip install -r backend/requirements.txt
+pip install -r requirements.txt
 
-# Set up environment variables
-cp backend/.env.example backend/.env
-# Edit .env with your configuration (see Environment Variables section)
-
-# Run database migrations (if applicable)
-# For SQLite, tables are created automatically on first run
+# Set up environment variables (see Environment Variables section)
+cp .env.example .env  # If .env.example exists; otherwise create .env manually
+# Edit .env with your configuration
 
 # Start the development server
-uvicorn backend.app.main:app --reload
+uvicorn app.main:app --reload
 ```
 
 ### Frontend Setup
@@ -112,10 +104,10 @@ uvicorn backend.app.main:app --reload
 cd frontend
 
 # Install dependencies
-npm install
+npm ci
 
 # Set up environment variables
-cp .env.example .env.local
+cp .env.example .env.local  # If .env.example exists; otherwise create .env.local manually
 # Edit .env.local with your configuration (see Environment Variables section)
 
 # Start the development server
@@ -128,238 +120,224 @@ npm run dev
 docker-compose up --build
 
 # The application will be available at:
-# - Frontend: http://localhost:3000
+# - Frontend: http://localhost:5173
 # - Backend API: http://localhost:8000
 # - API Documentation: http://localhost:8000/docs
 ```
 
 ## Environment Variables
 
-### Backend (`backend/.env`)
+### Backend (`.env`)
 ```env
-# Application Settings
-DEBUG=True
-ENVIRONMENT=development
-API_V1_STR=/api/v1
-PROJECT_NAME=AI-Powered AWS Security Auditor
+# Application Mode
+DEMO_MODE=false                    # Set to "true" to enable demo mode (uses simulated data)
 
-# Database
-DATABASE_URL=sqlite:///./security_auditor.db
+# AI Service (Google Gemini)
+GEMINI_API_KEY=your_gemini_api_key_here  # Required for AI explanations; omitted falls back to hardcoded text
 
-# AWS Settings (for live scanning)
+# AWS Credentials (for live scanning)
+# These follow the standard AWS SDK credential chain (environment variables, ~/.aws/credentials, IAM role, etc.)
 AWS_ACCESS_KEY_ID=your_access_key_here
 AWS_SECRET_ACCESS_KEY=your_secret_key_here
-AWS_DEFAULT_REGION=us-east-1
-
-# AI Service Settings
-OPENAI_API_KEY=your_openai_api_key_here  # or other LLM provider
-AI_MODEL=gpt-3.5-turbo
-AI_MAX_TOKENS=500
-AI_TEMPERATURE=0.3
-
-# Security
-SECRET_KEY=your_secret_key_for_jwt_here
-ACCESS_TOKEN_EXPIRE_MINUTES=60
-
-# Rate Limiting
-RATE_LIMIT_PER_MINUTE=60
+AWS_SESSION_TOKEN=your_session_token_if_applicable  # Optional
+AWS_DEFAULT_REGION=us-east-1                  # Default AWS region for scanning
 ```
 
-### Frontend (`frontend/.env.local`)
+### Frontend (`.env.local`)
 ```env
 # API Configuration
-VITE_API_URL=http://localhost:8000/api/v1
-
-# Feature Flags
-VITE_ENABLE_DEMO_MODE=true
-VITE_ENABLE_AI_EXPLANATIONS=true
-VITE_SHOW_ADVANCED_SETTINGS=false
+VITE_API_BASE_URL=http://localhost:8000   # Base URL for backend API (adjust for production)
 ```
+
+> **Note**: The frontend proxy in `vite.config.js` forwards `/api` requests to `http://backend:8000` when using Docker. Adjust `VITE_API_BASE_URL` accordingly for your deployment.
 
 ## Demo Mode
 
 The application includes a fully functional Demo Mode that simulates AWS scanning results without requiring actual AWS credentials. This is perfect for exploration, presentations, and testing.
 
 To enable Demo Mode:
-1. Set `AWS_ACCESS_KEY_ID=demo` and `AWS_SECRET_ACCESS_KEY=demo` in the backend `.env` file
-2. Alternatively, set `VITE_ENABLE_DEMO_MODE=true` in the frontend `.env.local` file
-3. The application will generate realistic sample data for all scanners
+1. Set `DEMO_MODE=true` in the backend `.env` file
+2. (Optional) Unset or dummy AWS credentials; the scanners will skip live AWS calls when demo mode is active
+3. The application will generate realistic sample data for all scanner types
 4. AI explanations and Terraform generation work with the sample data
 
 Demo Mode includes:
-- Pre-populated findings across all scanner types
-- Realistic resource naming conventions
-- Varied severity levels (Critical, High, Medium, Low, Info)
-- Sample Terraform remediation code
+- Pre-populated findings across all scanner types (S3, Security Groups, IAM)
+- Realistic resource naming conventions (bucket names, security group IDs, usernames)
+- Varied severity levels (Critical, High, Medium, Low)
+- Sample Terraform remediation code (where applicable)
 - AI-generated explanations for each finding
 
 ## Folder Structure
 
 ```
 aws-security-auditor/
-├── backend/                    # FastAPI backend application
-│   ├── app/                    # Main application package
-│   │   ├── api/                # API route definitions
-│   │   │   └── v1/             # Version 1 API endpoints
-│   │   │       ├── health/     # Health check endpoints
-│   │   │       ├── scan/       # Scan initiation and results
-│   │   │       ├── findings/   # Findings retrieval and filtering
-│   │   │       ├── remediation/# Remediation guidance and Terraform generation
-│   │   │       └── reports/    # PDF report generation
-│   │   ├── core/               # Core configuration and utilities
-│   │   ├── models/             # SQLAlchemy database models
-│   │   ├── schemas/            # Pydantic models for request/validation
-│   │   ├── services/           # Business logic (scanners, AI, Terraform)
-│   │   └── main.py             # Application entry point
-│   ├── tests/                  # Unit and integration tests
-│   ├── requirements.txt        # Python dependencies
-│   ├── Dockerfile              # Backend Docker configuration
-│   └── alembic/                # Database migrations (if using PostgreSQL/MySQL)
-├── frontend/                   # React frontend application
-│   ├── public/                 # Static assets
-│   ├── src/                    # Source code
-│   │   ├── assets/             # Images, icons, logos
-│   │   ├── components/         # Reusable UI components
-│   │   ├── contexts/           # React Context providers
-│   │   ├── hooks/              # Custom React hooks
-│   │   ├── pages/              # Page components
-│   │   ├── services/           # API service clients
-│   │   ├── styles/             # Tailwind CSS configuration
-│   │   ├── utils/              # Utility functions and helpers
-│   │   └── App.js              # Main application component
-│   ├── package.json            # Node.js dependencies and scripts
-│   ├── tailwind.config.js      # Tailwind CSS configuration
-│   └── vite.config.js          # Vite build configuration
-├── docs/                       # Documentation (architecture, API, etc.)
-├── docker-compose.yml          # Multi-container Docker setup
-├── .github/                    # GitHub Actions workflows
+├── app/                              # FastAPI backend application
+│   ├── api/                          # API route definitions
+│   │   └── v1/                       # Version 1 API endpoints
+│   │       ├── endpoints/            # Individual endpoint modules
+│   │       │   ├── health.py         # GET /health
+│   │       │   ├── history.py        # GET /history/scans, GET /history/scans/{scan_id}
+│   │       │   ├── remediation.py    # GET /remediate/{scan_id}
+│   │       │   └── scan.py           # POST /scan
+│   │   ├── core/                     # Core configuration (if any)
+│   │   ├── crud/                     # Database CRUD operations
+│   │   ├── db/                       # Database session and model setup
+│   │   ├── demo/                     # Demo data generators (scan, remediation)
+│   │   ├── models/                   # SQLAlchemy database models
+│   │   ├── prompts/                  # Prompt templates for AI explanations
+│   │   ├── services/                 # Business logic (scanners, AI, Terraform, scoring)
+│   │   │   ├── explanation.py        # AI explanations using Google Gemini
+│   │   │   ├── iam_scanner.py        # IAM vulnerability scanner
+│   │   │   ├── orchestrator.py       # Combines results from all scanners
+│   │   │   ├── remediation.py        # Terraform remediation generation
+│   │   │   ├── scanner.py            # S3 public bucket scanner
+│   │   │   ├── security_group_scanner.py # Security group vulnerability scanner
+│   │   │   ├── scoring.py            # Score calculation
+│   │   └── templates/                # Jinja2 Terraform templates
+│   │       └── terraform/            # .j2 files for Terraform generation
+│   ├── constants.py                  # Centralized constants for vulnerability types
+│   └── main.py                       # FastAPI application entry point
+├── frontend/                         # React frontend application
+│   ├── public/                       # Static assets (index.html, etc.)
+│   ├── src/                          # Source code
+│   │   ├── assets/                   # Images, icons, logos
+│   │   ├── components/               # Reusable UI components (ScoreCard, ScannerPanel, etc.)
+│   │   ├── hooks/                    # Custom React hooks (if any)
+│   │   ├── pages/                    # Page components (DashboardPage, etc.)
+│   │   ├── services/                 # API service clients (api.js)
+│   │   └── App.jsx                   # Root application component
+│   ├── package.json                  # Node.js dependencies and scripts
+│   ├── tailwind.config.js            # Tailwind CSS configuration
+│   └── vite.config.js                # Vite build configuration (with API proxy)
+├── docs/                             # Documentation (architecture, etc.)
+├── docker-compose.yml                # Multi-container Docker setup
+├── .github/                          # GitHub Actions workflows
 │   └── workflows/
-│       └── ci-cd.yml           # Continuous Integration and Deployment
-├── README.md                   # This file
-└── LICENSE                     # MIT License
+│       └── ci.yml                    # Continuous Integration workflow
+├── requirements.txt                  # Python dependencies
+└── README.md                         # This file
 ```
 
 ## API Endpoints
 
+All API endpoints are prefixed as defined in `app/main.py`. The base URL is `http://<host>:8000`.
+
 ### Health Check
-- `GET /health` - Returns service status and version
+- `GET /health`  
+  Returns service status, mode (demo/live), and version.
 
 ### Scanning
-- `POST /api/v1/scan` - Initiate a new security scan
-- `GET /api/v1/scan/{scan_id}` - Get scan status and results
-- `GET /api/v1/scans` - List all scans with filtering and pagination
+- `POST /scan`  
+  Initiate a full AWS security scan (S3, Security Groups, IAM).  
+  Accepts a JSON body matching the `ScanRequest` model (currently unused; kept for compatibility).  
+  Returns a `ScanResponse` with scan ID, status, findings count, security score, risk level, severity breakdown, and detailed findings.
 
-### Findings
-- `GET /api/v1/findings` - Retrieve findings with filtering, sorting, and pagination
-- `GET /api/v1/findings/{finding_id}` - Get detailed finding information
-- `PUT /api/v1/findings/{finding_id}/status` - Update finding status (e.g., resolved, ignored)
+### History
+- `GET /history/scans`  
+  Retrieve paginated list of historical scans (basic info).  
+  Query parameters: `skip` (default 0), `limit` (default 50).  
+  Returns array of scan objects with `scan_id`, `status`, `timestamp`, `findings_count`, `security_score`, `risk_level`.
+- `GET /history/scans/{scan_id}`  
+  Retrieve a specific scan by its scan ID, including all findings and severity breakdown.  
+  Returns detailed scan object with findings array (each finding includes `scanner`, `issue_type`, `finding_data`, etc.).
 
 ### Remediation
-- `POST /api/v1/remediation/terraform` - Generate Terraform code for findings
-- `GET /api/v1/remediation/guidance/{finding_id}` - Get AI-powered remediation guidance
-- `GET /api/v1/remediation/manual/{finding_id}` - Get manual remediation steps
+- `GET /remediate/{scan_id}`  
+  Generate Terraform remediation, manual guidance, and AI explanations for a given scan.  
+  Returns an object containing:
+  - `remediation.terraform`: Array of rendered Terraform blocks (filename, service, content)
+  - `remediation.manual_guidance`: Array of manual guidance objects (finding_id, issue_type, guidance, priority)
+  - `remediation.ai_explanations`: Array of explanations per unique issue type
+  - Metadata (totals, generated_at, warnings)
 
-### Reports
-- `GET /api/v1/reports/pdf/{scan_id}` - Generate and download PDF report
-- `GET /api/v1/reports/summary/{scan_id}` - Get executive summary JSON
-
-### Configuration
-- `GET /api/v1/config` - Get application configuration
-- `PUT /api/v1/config` - Update application settings
-
-Full interactive API documentation is available at `/docs` when the backend is running.
+*Full interactive API documentation is available at `/docs` when the backend is running.*
 
 ## Tech Stack
 
 ### Backend
-- **Framework**: FastAPI 0.95.0+
-- **Language**: Python 3.8+
-- **Database**: SQLAlchemy 1.4+ with SQLite (development), configurable for PostgreSQL/MySQL
-- **AWS**: Boto3 1.26+
-- **AI Integration**: OpenAI GPT-3.5-Turbo (configurable for other LLMs)
-- **Validation**: Pydantic 1.10+
-- **API Docs**: Swagger UI (automatically generated by FastAPI)
-- **Testing**: Pytest, pytest-asyncio
+- **Language**: Python 3.12+
+- **Framework**: FastAPI 0.136.0+
+- **Database**: SQLAlchemy 1.4+ with SQLite (development/production)
+- **AWS**: Boto3 1.26+ (uses default credential chain)
+- **AI**: Google Generative AI (`google-generativeai`) for explanations
+- **Validation**: Implicit via Pydantic models (included with FastAPI)
+- **API Docs**: Swagger UI (auto-generated by FastAPI)
+- **Testing**: (Placeholder; backend tests temporarily skipped in CI)
 - **Container**: Docker, Docker Compose
 
 ### Frontend
-- **Framework**: React 18.2.0+
-- **Language**: JavaScript (ES6+) with React Hooks
-- **Styling**: Tailwind CSS 3.3+
-- **State Management**: React Context API and useReducer
-- **Data Fetching**: Axios 1.4+
-- **Data Visualization**: Chart.js 4.3+ with react-chartjs-2
-- **Routing**: React Router v6
-- **Build Tool**: Vite 4.3+
-- **Testing**: Jest, React Testing Library
+- **Language**: JavaScript (ES6+) with React 19
+- **Framework**: React 19 (hooks for state management)
+- **Build Tool**: Vite 8+
+- **Styling**: Tailwind CSS 3.4+
+- **State Management**: React Context and local state (via hooks)
+- **Data Fetching**: Axios 1.18+
+- **Data Visualization**: 
+  - Recharts 3.8+ (for security score and severity breakdown pie chart)
+  - html2pdf.js 0.14+ (client-side PDF export)
+- **Icons**: Lucide React
+- **Routing**: React Router DOM 7.18+
+- **Linting**: ESLint
 - **Container**: Docker, Docker Compose
 
 ### DevOps & Infrastructure
-- **CI/CD**: GitHub Actions
-- **Backend Deployment**: Render (Web Service)
-- **Frontend Deployment**: Vercel
-- **Container Orchestration**: Docker Compose (local development)
-- **Monitoring**: Built-in health checks and logging
-- **Security**: JWT authentication, environment-based configuration, CORS policies
+- **CI/CD**: GitHub Actions (`.github/workflows/ci.yml`)
+  - Backend: Installs dependencies, skips tests (temporarily), builds Docker image
+  - Frontend: Installs dependencies, runs lint, builds production bundle
+  - Docker: Builds backend image (does not push to registry)
+- **Deployment**: 
+  - Backend:  Deployed on Render
+  - Frontend: Deployed on Vercel
+- **Monitoring**: Built-in health check endpoint
+- **Security**: CORS middleware with configurable origins
 
 ## CI/CD
 
-The project includes GitHub Actions workflows for automated testing, building, and deployment:
+The project uses a GitHub Actions workflow (`.github/workflows/ci.yml`) that runs on push and pull request to the `main` branch. The workflow performs the following steps:
 
-### Workflows
-- **CI/CD Pipeline** (`.github/workflows/ci-cd.yml`):
-  - Runs on every push to `main` and pull requests
-  - Backend: Installs dependencies, runs tests, lints code, builds Docker image
-  - Frontend: Installs dependencies, runs tests, lints code, builds production bundle
-  - Deploys backend to Render on push to `main`
-  - Deploys frontend to Vercel on push to `main`
-  - Sends notifications on deployment status
+1. Checkout repository
+2. Set up Python 3.12
+3. Install backend dependencies
+4. Skip backend tests (temporary)
+5. Set up Node.js 22
+6. Install frontend dependencies (`npm ci`)
+7. Build the frontend (`npm run build`)
+8. Build the backend Docker image (without pushing)
 
-### Local Testing
-```bash
-# Backend tests
-cd backend
-pytest
+*Note: Backend tests are intentionally skipped for now.*
 
-# Frontend tests
-cd frontend
-npm test
-```
+## Project Highlights
+
+- FastAPI Backend
+- React + Vite Frontend
+- AWS SDK (boto3)
+- SQLAlchemy
+- Google Gemini AI
+- Terraform Remediation Generation
+- Docker
+- GitHub Actions CI
+- Docker Compose
+- PDF Report Generation (using html2pdf.js)
 
 ## Future Improvements
 
-### Planned Features
-- **Multi-Account Support**: Scan and manage multiple AWS accounts from a single dashboard
-- **Compliance Frameworks**: Built-in checks for CIS AWS Foundations, PCI DSS, HIPAA, GDPR
-- **Continuous Monitoring**: Scheduled scans and drift detection
-- **Integration Hub**: Connect with SIEM tools, ticketing systems (Jira, ServiceNow), and communication platforms (Slack, Teams)
-- **Policy as Code**: Integration with AWS Config Rules and GuardDuty findings
-- **Risk Prioritization**: CVSS scoring and business context-based risk ranking
-- **Automated Remediation**: One-click apply of Terraform changes through CI/CD pipelines
-- **Role-Based Access Control**: Fine-grained permissions for team collaboration
-- **Advanced Analytics**: Trend analysis, predictive security scoring, and benchmarking
+The following enhancements could be considered for future development (not currently planned or implemented):
 
-### Technical Enhancements
-- **Performance Optimization**: Caching layer (Redis) for frequent queries
-- **Scalability**: Migration to PostgreSQL/MySQL for production, horizontal scaling
-- **Enhanced AI**: Fine-tuned models for AWS-specific remediation, multi-language support
-- **Infrastructure**: Kubernetes deployment manifests, Helm charts
-- **Observability**: Distributed tracing (Jaeger), metrics (Prometheus), logging (ELK stack)
-- **Mobile Access**: Progressive Web App (PWA) support and potential mobile applications
-- **Accessibility**: WCAG 2.1 AA compliance for inclusive design
+- **Multi-Account Support**: Scan and manage multiple AWS accounts from a single dashboard.
+- **Compliance Frameworks**: Built-in checks for CIS AWS Foundations, PCI DSS, HIPAA, GDPR.
+- **Continuous Monitoring**: Scheduled scans, drift detection, and alerting.
+- **Integration Hub**: Connect with SIEM tools (Splunk, Elastic), ticketing systems (Jira, ServiceNow), and communication platforms (Slack, Microsoft Teams).
+- **Policy as Code**: Integration with AWS Config Rules and GuardDuty findings for centralized compliance.
+- **Automated Remediation**: One-click apply of Terraform changes via CI/CD pipelines (with approval workflows).
+- **Role-Based Access Control (RBAC)**: Fine-grained permissions for team collaboration and tenant isolation.
+- **Advanced Analytics**: Trend analysis, predictive security scoring, and benchmarking against industry baselines.
+- **Enhanced AI**: Fine-tuned models for AWS-specific remediation, multi-language support, and confidence scoring.
+- **Infrastructure as Code**: Terraform modules for deploying the auditor itself, Helm charts for Kubernetes.
+- **Observability**: Distributed tracing (Jaeger/OpenTelemetry), metrics (Prometheus), and structured logging (ELK stack).
+- **Mobile Access**: Progressive Web App (PWA) support and potential native mobile applications.
+- **Accessibility**: WCAG 2.1 AA compliance for inclusive design.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- Inspired by AWS Well-Architected Framework and AWS Security Hub
-- Built with ❤️ using open-source technologies
-- Special thanks to the contributors and maintainers of FastAPI, React, Tailwind CSS, and all other dependencies
-
----
-
-**Note**: Replace `your-username` in the badge URLs and documentation with your actual GitHub username or organization name.
-
-**Disclaimer**: This tool is designed for security assessment and remediation guidance. Always review generated Terraform code and remediation suggestions in a staging environment before applying to production AWS resources. The authors are not responsible for any unintended changes or security issues resulting from the use of this tool.
+This project is licensed under the MIT License. See the LICENSE file for details.
