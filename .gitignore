@@ -1,9 +1,31 @@
+# Virtual environments
 .venv/
 .venv-1/
-__pycache__/
+
+# Environment variables
 .env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.log
+
+# Database
+audit.db
+*.db
+
+# IDE
 .vscode/
 .idea/
-*.log
+
+# Frontend
+node_modules/
+dist/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Claude
 .claude/
-audit.db
