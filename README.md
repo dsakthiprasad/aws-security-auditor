@@ -43,6 +43,30 @@ Built with a modern full-stack architecture using FastAPI (backend) and React (f
 - **Database**: SQLite for storing scan history and results
 - **Authentication**: None (intended for trusted environments; add auth as needed for production)
 
+## 📸 Screenshots
+
+### Dashboard
+
+![Dashboard](assets/dashboard.png)
+
+---
+
+### Security Findings
+
+![Findings](assets/findings.png)
+
+---
+
+### AI Remediation Hub
+
+![Remediation](assets/remediation.png)
+
+---
+
+### Generated Security Report
+
+![Report](assets/report.png)
+
 ## Architecture
 
 The application follows a client-server architecture:
